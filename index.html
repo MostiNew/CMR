@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comprehensive Critical Minerals SDG Monitor</title>
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; color:#333; }
+header { background:#2c3e50; color:white; padding:1rem; text-align:center; }
+h1 { margin:0; }
+section { padding:1rem; max-width:1200px; margin:auto; }
+.controls { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin-bottom:1rem; }
+select, button { padding:0.5rem; font-size:1rem; }
+.chart-container { width:100%; max-width:1000px; margin:2rem auto; }
+table { width:100%; border-collapse:collapse; margin:2rem 0; }
+th, td { border:1px solid #ccc; padding:0.5rem; text-align:center; }
+th { background:#34495e; color:white; }
+td.high { background:#e74c3c; color:white; }
+td.medium { background:#f39c12; color:white; }
+td.low { background:#2ecc71; color:white; }
+footer { text-align:center; padding:1rem; font-size:0.9rem; color:#777; }
+</style>
+</head>
+<body>
+
+<header>
+<h1>Comprehensive Critical Minerals SDG Monitor</h1>
+<p>Live UN SDG Data | Global Map | Mineral-specific Impact</p>
+</header>
+
+<section class="controls">
+<label for="mineralSelect">Select Minerals:</label>
+<select id="mineralSelect" multiple>
+  <option value="Lithium">Lithium</option>
+  <option value="Cobalt">Cobalt</option>
+  <option value="Nickel">Nickel</option>
+  <option value="Rare Earths">Rare Earths</option>
+  <option value="Graphite">Graphite</option>
+  <option value="Copper">Copper</option>
+  <option value="Manganese">Manganese</option>
+  <option value="Tin">Tin</option>
+  <option value="Tungsten">Tungsten</option>
+  <option value="Zinc">Zinc</option>
+</select>
+<button onclick="updateAll()">Update Monitor</button>
+</section>
+
+<section>
+<h2>Global Risk Map</h2>
+<canvas id="mapChart" class="chart-container"></canvas>
+</section>
+
+<section>
+<h2>Environmental Risk Scores</h2>
+<canvas id="envChart" class="chart-container"></canvas>
+</section>
+
+<section>
+<h2>Social Risk Scores</h2>
+<canvas id="socChart" class="chart-container"></canvas>
+</section>
+
+<section>
+<h2>Detailed Metrics</h2>
+<table id="metricsTable">
+<thead>
+<tr>
+<th>Mineral</th>
+<th>Water Use</th>
+<th>CO₂ Emissions</th>
+<th>Land Disturbance</th>
+<th>Waste Management</th>
+<th>Labor Safety</th>
+<th>Community Impact</th>
+<th>Gender Equality</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</section>
+
+<footer>
+&copy; 2026 Critical Minerals Monitor | Live SDG Data from UN
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-geo@3.3.0/dist/chartjs-chart-geo.min.js"></script>
+
+<script>
+// Base Minerals Data
+const mineralsData=[
+{name:"Lithium", water:4, co2:3, land:3, waste:2, labor:3, community:2, gender:3},
+{name:"Cobalt", water:3, co2:4, land:4, waste:3, labor:5, community:4, gender:3},
+{name:"Nickel", water:3, co2:4, land:3, waste:2, labor:3, community:2, gender:2},
+{name:"Rare Earths", water:5, co2:5, land:5, waste:4, labor:3, community:3, gender:2},
+{name:"Graphite", water:3, co2:3, land:3, waste:2, labor:2, community:2, gender:2},
+{name:"Copper", water:4, co2:4, land:4, waste:3, labor:3, community:3, gender:3},
+{name:"Manganese", water:3, co2:3, land:3, waste:2, labor:2, community:2, gender:2},
+{name:"Tin", water:3, co2:3, land:3, waste:2, labor:3, community:2, gender:2},
+{name:"Tungsten", water:3, co2:3, land:3, waste:2, labor:2, community:2, gender:2},
+{name:"Zinc", water:3, co2:3, land:3, waste:2, labor:2, community:2, gender:2}
+];
+
+let envChart,socChart,mapChart,worldGeoJson=null;
+
+async function loadWorldMap(){
+const res=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+const topo=await res.json();
+worldGeoJson=ChartGeo.topojson.feature(topo,topo.objects.countries).features;
+}
+loadWorldMap();
+
+function riskClass(score){if(score>=4) return 'high'; if(score>=3) return 'medium'; return 'low';}
+
+// Fetch SDG
+async function fetchSDG(countryCode,indicator){
+try{
+const url=`https://unstats.un.org/SDGAPI/v1/sdg/Indicator/Data?country=${countryCode}&indicator=${indicator}`;
+const res=await fetch(url);
+const data=await res.json();
+if(data.data&&data.data.length>0) return data.data[0].value||3;
+return 3;
+}catch(e){return 3;}
+}
+
+// Update Monitor
+async function updateAll(){
+const selectedMinerals=Array.from(document.getElementById('mineralSelect').selectedOptions).map(o=>o.value);
+if(selectedMinerals.length===0) selectedMinerals.push("Lithium");
+
+const countries=worldGeoJson?worldGeoJson.map(c=>c.id):['USA','CHN','AUS','BRA','RUS','COD'];
+const countryScores={};
+
+for(const c of countries){
+const water=await fetchSDG(c,'6.4.1');   // Water
+const labor=await fetchSDG(c,'8.8.1');   // Labor
+const co2=await fetchSDG(c,'13.2.1');    // CO2
+const land=await fetchSDG(c,'15.1.1');   // Land/biodiversity
+const community=await fetchSDG(c,'11.1.1'); // Community impact
+const gender=await fetchSDG(c,'5.5.1');  // Gender equality
+countryScores[c]={water,labor,co2,land,community,gender};
+}
+
+// Merge SDG data
+const mergedData=mineralsData.filter(m=>selectedMinerals.includes(m.name)).map(m=>{
+const avgWater=Object.values(countryScores).reduce((a,b)=>a+b.water,0)/countries.length;
+const avgLabor=Object.values(countryScores).reduce((a,b)=>a+b.labor,0)/countries.length;
+const avgCO2=Object.values(countryScores).reduce((a,b)=>a+b.co2,0)/countries.length;
+const avgLand=Object.values(countryScores).reduce((a,b)=>a+b.land,0)/countries.length;
+const avgCommunity=Object.values(countryScores).reduce((a,b)=>a+b.community,0)/countries.length;
+const avgGender=Object.values(countryScores).reduce((a,b)=>a+b.gender,0)/countries.length;
+return {
+...m,
+water:(m.water+avgWater)/2,
+co2:(m.co2+avgCO2)/2,
+land:(m.land+avgLand)/2,
+labor:(m.labor+avgLabor)/2,
+community:(m.community+avgCommunity)/2,
+gender:(m.gender+avgGender)/2
+};
+});
+
+// Table
+const tbody=document.querySelector('#metricsTable tbody');
+tbody.innerHTML='';
+mergedData.forEach(m=>{
+const tr=document.createElement('tr');
+tr.innerHTML=`<td>${m.name}</td>
+<td class="${riskClass(m.water)}">${m.water.toFixed(1)}</td>
+<td class="${riskClass(m.co2)}">${m.co2.toFixed(1)}</td>
+<td class="${riskClass(m.land)}">${m.land.toFixed(1)}</td>
+<td class="${riskClass(m.waste)}">${m.waste.toFixed(1)}</td>
+<td class="${riskClass(m.labor)}">${m.labor.toFixed(1)}</td>
+<td class="${riskClass(m.community)}">${m.community.toFixed(1)}</td>
+<td class="${riskClass(m.gender)}">${m.gender.toFixed(1)}</td>`;
+tbody.appendChild(tr);
+});
+
+// Charts
+const labels=mergedData.map(m=>m.name);
+const envScores=mergedData.map(m=>(m.water+m.co2+m.land+m.waste)/4);
+const socScores=mergedData.map(m=>(m.labor+m.community+m.gender)/3);
+
+if(envChart) envChart.destroy();
+envChart=new Chart(document.getElementById('envChart'),{
+type:'bar',
+data:{labels,datasets:[{label:'Environmental Risk Score',data:envScores,backgroundColor:'rgba(231,76,60,0.7)'}]},
+options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
+});
+
+if(socChart) socChart.destroy();
+socChart=new Chart(document.getElementById('socChart'),{
+type:'bar',
+data:{labels,datasets:[{label:'Social Risk Score',data:socScores,backgroundColor:'rgba(52,152,219,0.7)'}]},
+options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
+});
+
+// Map
+if(worldGeoJson){
+const mapData=worldGeoJson.map(f=>{
+const code=f.id;
+const score=countryScores[code]? (countryScores[code].water+countryScores[code].labor+countryScores[code].co2+countryScores[code].land+countryScores[code].community+countryScores[code].gender)/6 : 0;
+return {feature:f,value:score};
+});
+
+if(mapChart) mapChart.destroy();
+mapChart=new Chart(document.getElementById('mapChart'),{
+type:'choropleth',
+data:{labels:mapData.map(d=>d.feature.properties.name),datasets:[{label:'Global Risk',outline:worldGeoJson,data:mapData}]},
+options:{responsive:true,scales:{xy:{projection:'equalEarth',color:{legend:{display:true}}}}}
+});
+}
+
+}
+
+// Initial load
+setTimeout(updateAll,1000);
+</script>
+
+</body>
+</html>
