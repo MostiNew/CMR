@@ -87,7 +87,7 @@ footer { text-align:center; padding:1rem; font-size:0.9rem; color:#777; }
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-geo@3.3.0/dist/chartjs-chart-geo.min.js"></script>
 
 <script>
-// Base Minerals Data
+// Base minerals data
 const mineralsData=[
 {name:"Lithium", water:4, co2:3, land:3, waste:2, labor:3, community:2, gender:3},
 {name:"Cobalt", water:3, co2:4, land:4, waste:3, labor:5, community:4, gender:3},
@@ -104,9 +104,9 @@ const mineralsData=[
 let envChart,socChart,mapChart,worldGeoJson=null;
 
 async function loadWorldMap(){
-const res=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
-const topo=await res.json();
-worldGeoJson=ChartGeo.topojson.feature(topo,topo.objects.countries).features;
+  const res = await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+  const topo = await res.json();
+  worldGeoJson = ChartGeo.topojson.feature(topo, topo.objects.countries).features;
 }
 loadWorldMap();
 
@@ -114,58 +114,57 @@ function riskClass(score){if(score>=4) return 'high'; if(score>=3) return 'mediu
 
 // Fetch SDG
 async function fetchSDG(countryCode,indicator){
-try{
-const url=`https://unstats.un.org/SDGAPI/v1/sdg/Indicator/Data?country=${countryCode}&indicator=${indicator}`;
-const res=await fetch(url);
-const data=await res.json();
-if(data.data&&data.data.length>0) return data.data[0].value||3;
-return 3;
-}catch(e){return 3;}
+  try{
+    const url=`https://unstats.un.org/SDGAPI/v1/sdg/Indicator/Data?country=${countryCode}&indicator=${indicator}`;
+    const res=await fetch(url);
+    const data=await res.json();
+    if(data.data && data.data.length>0) return data.data[0].value || 3;
+    return 3;
+  }catch(e){return 3;}
 }
 
-// Update Monitor
+// Update monitor
 async function updateAll(){
-const selectedMinerals=Array.from(document.getElementById('mineralSelect').selectedOptions).map(o=>o.value);
-if(selectedMinerals.length===0) selectedMinerals.push("Lithium");
+  const selectedMinerals = Array.from(document.getElementById('mineralSelect').selectedOptions).map(o=>o.value);
+  if(selectedMinerals.length===0) selectedMinerals.push("Lithium");
 
-const countries=worldGeoJson?worldGeoJson.map(c=>c.id):['USA','CHN','AUS','BRA','RUS','COD'];
-const countryScores={};
+  const countries = worldGeoJson ? worldGeoJson.map(c=>c.id) : ['USA','CHN','AUS','BRA','RUS','COD'];
+  const countryScores={};
 
-for(const c of countries){
-const water=await fetchSDG(c,'6.4.1');   // Water
-const labor=await fetchSDG(c,'8.8.1');   // Labor
-const co2=await fetchSDG(c,'13.2.1');    // CO2
-const land=await fetchSDG(c,'15.1.1');   // Land/biodiversity
-const community=await fetchSDG(c,'11.1.1'); // Community impact
-const gender=await fetchSDG(c,'5.5.1');  // Gender equality
-countryScores[c]={water,labor,co2,land,community,gender};
-}
+  for(const c of countries){
+    const water=await fetchSDG(c,'6.4.1');       // Water efficiency
+    const labor=await fetchSDG(c,'8.8.1');       // Labor safety
+    const co2=await fetchSDG(c,'13.2.1');        // CO2
+    const land=await fetchSDG(c,'15.1.1');       // Land/biodiversity
+    const community=await fetchSDG(c,'11.1.1');  // Community impact
+    const gender=await fetchSDG(c,'5.5.1');      // Gender equality
+    countryScores[c]={water,labor,co2,land,community,gender};
+  }
 
-// Merge SDG data
-const mergedData=mineralsData.filter(m=>selectedMinerals.includes(m.name)).map(m=>{
-const avgWater=Object.values(countryScores).reduce((a,b)=>a+b.water,0)/countries.length;
-const avgLabor=Object.values(countryScores).reduce((a,b)=>a+b.labor,0)/countries.length;
-const avgCO2=Object.values(countryScores).reduce((a,b)=>a+b.co2,0)/countries.length;
-const avgLand=Object.values(countryScores).reduce((a,b)=>a+b.land,0)/countries.length;
-const avgCommunity=Object.values(countryScores).reduce((a,b)=>a+b.community,0)/countries.length;
-const avgGender=Object.values(countryScores).reduce((a,b)=>a+b.gender,0)/countries.length;
-return {
-...m,
-water:(m.water+avgWater)/2,
-co2:(m.co2+avgCO2)/2,
-land:(m.land+avgLand)/2,
-labor:(m.labor+avgLabor)/2,
-community:(m.community+avgCommunity)/2,
-gender:(m.gender+avgGender)/2
-};
-});
+  const mergedData=mineralsData.filter(m=>selectedMinerals.includes(m.name)).map(m=>{
+    const avgWater = Object.values(countryScores).reduce((a,b)=>a+b.water,0)/countries.length;
+    const avgLabor = Object.values(countryScores).reduce((a,b)=>a+b.labor,0)/countries.length;
+    const avgCO2 = Object.values(countryScores).reduce((a,b)=>a+b.co2,0)/countries.length;
+    const avgLand = Object.values(countryScores).reduce((a,b)=>a+b.land,0)/countries.length;
+    const avgCommunity = Object.values(countryScores).reduce((a,b)=>a+b.community,0)/countries.length;
+    const avgGender = Object.values(countryScores).reduce((a,b)=>a+b.gender,0)/countries.length;
+    return {
+      ...m,
+      water:(m.water+avgWater)/2,
+      co2:(m.co2+avgCO2)/2,
+      land:(m.land+avgLand)/2,
+      labor:(m.labor+avgLabor)/2,
+      community:(m.community+avgCommunity)/2,
+      gender:(m.gender+avgGender)/2
+    };
+  });
 
-// Table
-const tbody=document.querySelector('#metricsTable tbody');
-tbody.innerHTML='';
-mergedData.forEach(m=>{
-const tr=document.createElement('tr');
-tr.innerHTML=`<td>${m.name}</td>
+  // Table
+  const tbody=document.querySelector('#metricsTable tbody');
+  tbody.innerHTML='';
+  mergedData.forEach(m=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${m.name}</td>
 <td class="${riskClass(m.water)}">${m.water.toFixed(1)}</td>
 <td class="${riskClass(m.co2)}">${m.co2.toFixed(1)}</td>
 <td class="${riskClass(m.land)}">${m.land.toFixed(1)}</td>
@@ -173,47 +172,45 @@ tr.innerHTML=`<td>${m.name}</td>
 <td class="${riskClass(m.labor)}">${m.labor.toFixed(1)}</td>
 <td class="${riskClass(m.community)}">${m.community.toFixed(1)}</td>
 <td class="${riskClass(m.gender)}">${m.gender.toFixed(1)}</td>`;
-tbody.appendChild(tr);
-});
+    tbody.appendChild(tr);
+  });
 
-// Charts
-const labels=mergedData.map(m=>m.name);
-const envScores=mergedData.map(m=>(m.water+m.co2+m.land+m.waste)/4);
-const socScores=mergedData.map(m=>(m.labor+m.community+m.gender)/3);
+  // Charts
+  const labels = mergedData.map(m=>m.name);
+  const envScores = mergedData.map(m=>(m.water+m.co2+m.land+m.waste)/4);
+  const socScores = mergedData.map(m=>(m.labor+m.community+m.gender)/3);
 
-if(envChart) envChart.destroy();
-envChart=new Chart(document.getElementById('envChart'),{
-type:'bar',
-data:{labels,datasets:[{label:'Environmental Risk Score',data:envScores,backgroundColor:'rgba(231,76,60,0.7)'}]},
-options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
-});
+  if(envChart) envChart.destroy();
+  envChart=new Chart(document.getElementById('envChart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Environmental Risk Score',data:envScores,backgroundColor:'rgba(231,76,60,0.7)'}]},
+    options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
+  });
 
-if(socChart) socChart.destroy();
-socChart=new Chart(document.getElementById('socChart'),{
-type:'bar',
-data:{labels,datasets:[{label:'Social Risk Score',data:socScores,backgroundColor:'rgba(52,152,219,0.7)'}]},
-options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
-});
+  if(socChart) socChart.destroy();
+  socChart=new Chart(document.getElementById('socChart'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Social Risk Score',data:socScores,backgroundColor:'rgba(52,152,219,0.7)'}]},
+    options:{responsive:true,scales:{y:{beginAtZero:true,max:5}}}
+  });
 
-// Map
-if(worldGeoJson){
-const mapData=worldGeoJson.map(f=>{
-const code=f.id;
-const score=countryScores[code]? (countryScores[code].water+countryScores[code].labor+countryScores[code].co2+countryScores[code].land+countryScores[code].community+countryScores[code].gender)/6 : 0;
-return {feature:f,value:score};
-});
+  // Map
+  if(worldGeoJson){
+    const mapData = worldGeoJson.map(f=>{
+      const code = f.id;
+      const score = countryScores[code]? (countryScores[code].water+countryScores[code].labor+countryScores[code].co2+countryScores[code].land+countryScores[code].community+countryScores[code].gender)/6 : 0;
+      return {feature:f,value:score};
+    });
 
-if(mapChart) mapChart.destroy();
-mapChart=new Chart(document.getElementById('mapChart'),{
-type:'choropleth',
-data:{labels:mapData.map(d=>d.feature.properties.name),datasets:[{label:'Global Risk',outline:worldGeoJson,data:mapData}]},
-options:{responsive:true,scales:{xy:{projection:'equalEarth',color:{legend:{display:true}}}}}
-});
+    if(mapChart) mapChart.destroy();
+    mapChart=new Chart(document.getElementById('mapChart'),{
+      type:'choropleth',
+      data:{labels:mapData.map(d=>d.feature.properties.name),datasets:[{label:'Global Risk',outline:worldGeoJson,data:mapData}]},
+      options:{responsive:true,scales:{xy:{projection:'equalEarth',color:{legend:{display:true}}}}}
+    });
+  }
 }
 
-}
-
-// Initial load
 setTimeout(updateAll,1000);
 </script>
 
